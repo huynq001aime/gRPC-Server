@@ -1,0 +1,30 @@
+syntax = "proto3";
+package qachat;
+option go_package = "myproject/gen/go/qachat";
+import "google/api/annotations.proto";
+
+service LLMAgent{
+
+    rpc GetAnswer(PromptRequest) returns (AnswerResponse) {
+        option (google.api.http) = {
+            post: "/v1/llm/answer"
+            body: "*"
+        };
+    }
+
+    rpc GetListAnswers(PromptRequest) returns (stream AnswerResponse) {
+        option (google.api.http) = {
+            post: "/v1/llm/stream_answers"
+            body: "*"
+        };
+    }
+
+}
+
+message PromptRequest{
+    string q = 1;
+}
+
+message AnswerResponse{
+    string ans = 1;
+}
