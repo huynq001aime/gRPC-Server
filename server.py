@@ -12,7 +12,8 @@ import json
 
 class LLMAgentServicer(qachat_pb2_grpc.LLMAgentServicer):
     def __init__(self):
-        self.bootstrap_servers = 'localhost:9092'
+        # self.bootstrap_servers = 'localhost:9092'
+        self.bootstrap_servers = 'kafka:29092'
         self.topic_request = 'qachat'
         self.topic_response = 'qachat_response'
         self.session_id = 1 # Fix cứng

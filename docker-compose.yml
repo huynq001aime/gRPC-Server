@@ -9,17 +9,66 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+    restart: unless-stopped
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: kafka
-    ports:
-      - "9092:9092"
     depends_on:
       - zookeeper
+    ports:
+      - "9092:9092"
     environment:
-      KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092 #
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT #
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT #
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: '1' #
+      KAFKA_MIN_INSYNC_REPLICAS: '1'
+    restart: unless-stopped
+
+  kafka-init:
+    image: confluentinc/cp-kafka:7.5.0
+    depends_on:
+      - kafka
+    entrypoint: [ '/bin/sh', '-c' ]
+    command: |
+      "
+      kafka-topics --bootstrap-server kafka:29092 --list
+
+      echo 'Creating kafka topics...'
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic qachat --replication-factor 1 --partitions 1
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic qachat_response --replication-factor 1 --partitions 1
+
+      echo 'List of topics:'
+      kafka-topics --bootstrap-server kafka:29092 --list
+      "
+
+  grpc_server:
+    image: shuttfubbb/grpc_server:test
+    container_name: grpc_server
+    ports:
+      - "50051:50051"   # port gRPC
+      - "8080:8080"     # port grpc-gateway
+    depends_on:
+      - kafka
+      - zookeeper
+    restart: unless-stopped
+
+  
+  llm_agent:
+    image: shuttfubbb/llm_agent:test
+    container_name: llm_agent
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY}
+      - TAVILY_API_KEY=${TAVILY_API_KEY}
+      - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
+    ports:
+      - "10000:10000"    # server 1
+      - "10002:10002"    # server 2
+    depends_on:
+      - kafka
+      - zookeeper
+    restart: unless-stopped 
